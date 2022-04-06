@@ -4,9 +4,11 @@ import { solveContract } from "./solveContract.mjs";
 main();
 
 function main() {
-    let testsPerContract = 10;
-    for (let i=0; i<codingContractTypesMetadata.length; i++) {
+    let testsPerContract = 100;
+    for (let i=2; i<codingContractTypesMetadata.length; i++) {
         let contractType = codingContractTypesMetadata[i].name;
+        let failed = false;
+        let skipped = 0;
 
         console.log("-----------------------------------------");
         console.log(`Running tests for ${contractType}...`);
@@ -17,7 +19,7 @@ function main() {
             let contractData = codingContractTypesMetadata[i].gen();
             let test = solveContract(contractType, contractData);
             if (test === undefined) {
-                console.log(`    Skipped test for "${contractType}"`);
+                skipped++;
                 continue;
             }
             test = cleanResponse(test);
@@ -26,12 +28,18 @@ function main() {
                 successCnt++;
             } else {
                 console.log(`    Failed test for "${contractType}"`);
-                console.log(`        Contract input: ${contractData}`);
+                console.log(`        Contract input: ${JSON.stringify(contractData)}`);
                 console.log(`        Solver response: ${test}`);
+                console.log(`        Correct response: ${codingContractTypesMetadata[i].answer(contractData)}`);
+                failed = true;
             }
         }
 
         console.log(`    Successfully finished ${successCnt} tests for ${contractType}`);
+        console.log(`    Skipped ${skipped} tests for "${contractType}"`);
+        if (failed) {
+            return;
+        }
     }
 }
 

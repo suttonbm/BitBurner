@@ -92,6 +92,18 @@ export const codingContractTypesMetadata = [
 
       return (n === 1 ? fac - 1 : n) === parseInt(ans, 10);
     },
+    answer: (data) => {
+      let fac = 2;
+      let n = data;
+      while (n > (fac - 1) * (fac - 1)) {
+        while (n % fac === 0) {
+          n = Math.round(n / fac);
+        }
+        ++fac;
+      }
+
+      return (n === 1 ? fac - 1 : n);
+    },
   },
   {
     desc: (n) => {
@@ -123,6 +135,14 @@ export const codingContractTypesMetadata = [
 
       return parseInt(ans, 10) === Math.max(...nums);
     },
+    answer: (data) => {
+      const nums = data.slice();
+      for (let i = 1; i < nums.length; i++) {
+        nums[i] = Math.max(nums[i], nums[i] + nums[i - 1]);
+      }
+
+      return Math.max(...nums);
+    },
   },
   {
     desc: (n) => {
@@ -153,6 +173,18 @@ export const codingContractTypesMetadata = [
       }
 
       return ways[data] === parseInt(ans, 10);
+    },
+    answer: (data) => {
+      const ways = [1];
+      ways.length = data + 1;
+      ways.fill(0, 1);
+      for (let i = 1; i < data; ++i) {
+        for (let j = i; j <= data; ++j) {
+          ways[j] += ways[j - i];
+        }
+      }
+
+      return ways[data];
     },
   },
   {
@@ -277,6 +309,7 @@ export const codingContractTypesMetadata = [
 
       return true;
     },
+    answer: (data) => {return;}
   },
   {
     desc: (arr) => {
@@ -318,6 +351,15 @@ export const codingContractTypesMetadata = [
       }
       const solution = i === n;
       return (ans === "1" && solution) || (ans === "0" && !solution);
+    },
+    answer: (data) => {
+      const n = data.length;
+      let i = 0;
+      for (let reach = 0; i < n && i <= reach; ++i) {
+        reach = Math.max(i + data[i], reach);
+      }
+      const solution = i === n;
+      return solution;
     },
   },
   {
@@ -373,6 +415,7 @@ export const codingContractTypesMetadata = [
 
       return sanitizedResult === sanitizedAns || sanitizedResult === removeBracketsFromArrayString(sanitizedAns);
     },
+    answer: (data) => { return; }
   },
   {
     desc: (data) => {
@@ -437,6 +480,7 @@ export const codingContractTypesMetadata = [
 
       return true;
     },
+    answer: (data) => { return; }
   },
   {
     desc: (data) => {
@@ -473,6 +517,16 @@ export const codingContractTypesMetadata = [
 
       return maxSoFar.toString() === ans;
     },
+    answer: (data) => {
+      let maxCur = 0;
+      let maxSoFar = 0;
+      for (let i = 1; i < data.length; ++i) {
+        maxCur = Math.max(0, (maxCur += data[i] - data[i - 1]));
+        maxSoFar = Math.max(maxCur, maxSoFar);
+      }
+
+      return maxSoFar.toString();
+    },
   },
   {
     desc: (data) => {
@@ -508,6 +562,14 @@ export const codingContractTypesMetadata = [
       }
 
       return profit.toString() === ans;
+    },
+    answer: (data) => {
+      let profit = 0;
+      for (let p = 1; p < data.length; ++p) {
+        profit += Math.max(data[p] - data[p - 1], 0);
+      }
+
+      return profit.toString();
     },
   },
   {
@@ -550,6 +612,20 @@ export const codingContractTypesMetadata = [
       }
 
       return release2.toString() === ans;
+    },
+    answer: (data) => {
+      let hold1 = Number.MIN_SAFE_INTEGER;
+      let hold2 = Number.MIN_SAFE_INTEGER;
+      let release1 = 0;
+      let release2 = 0;
+      for (const price of data) {
+        release2 = Math.max(release2, hold2 + price);
+        hold2 = Math.max(hold2, release1 - price);
+        release1 = Math.max(release1, hold1 + price);
+        hold1 = Math.max(hold1, price * -1);
+      }
+
+      return release2.toString();
     },
   },
   {
@@ -621,6 +697,43 @@ export const codingContractTypesMetadata = [
 
       return parseInt(ans) === rele[k];
     },
+    answer: (data) => {
+      const k = data[0];
+      const prices = data[1];
+
+      const len = prices.length;
+      if (len < 2) {
+        return parseInt(ans) === 0;
+      }
+      if (k > len / 2) {
+        let res = 0;
+        for (let i = 1; i < len; ++i) {
+          res += Math.max(prices[i] - prices[i - 1], 0);
+        }
+
+        return parseInt(ans) === res;
+      }
+
+      const hold = [];
+      const rele = [];
+      hold.length = k + 1;
+      rele.length = k + 1;
+      for (let i = 0; i <= k; ++i) {
+        hold[i] = Number.MIN_SAFE_INTEGER;
+        rele[i] = 0;
+      }
+
+      let cur;
+      for (let i = 0; i < len; ++i) {
+        cur = prices[i];
+        for (let j = k; j > 0; --j) {
+          rele[j] = Math.max(rele[j], hold[j] + cur);
+          hold[j] = Math.max(hold[j], rele[j - 1] - cur);
+        }
+      }
+
+      return rele[k];
+    },
   },
   {
     desc: (data) => {
@@ -688,6 +801,17 @@ export const codingContractTypesMetadata = [
 
       return dp[0] === parseInt(ans);
     },
+    answer: (data) => {
+      const n = data.length;
+      const dp = data[n - 1].slice();
+      for (let i = n - 2; i > -1; --i) {
+        for (let j = 0; j < data[i].length; ++j) {
+          dp[j] = Math.min(dp[j], dp[j + 1]) + data[i][j];
+        }
+      }
+
+      return dp[0];
+    },
   },
   {
     desc: (data) => {
@@ -731,6 +855,23 @@ export const codingContractTypesMetadata = [
 
       return parseInt(ans) === currentRow[n - 1];
     },
+    answer: (data) => {
+      const n = data[0]; // Number of rows
+      const m = data[1]; // Number of columns
+      const currentRow = [];
+      currentRow.length = n;
+
+      for (let i = 0; i < n; i++) {
+        currentRow[i] = 1;
+      }
+      for (let row = 1; row < m; row++) {
+        for (let i = 1; i < n; i++) {
+          currentRow[i] += currentRow[i - 1];
+        }
+      }
+
+      return currentRow[n - 1];
+    },
   },
   {
     desc: (data) => {
@@ -751,8 +892,8 @@ export const codingContractTypesMetadata = [
     },
     difficulty: 5,
     gen: () => {
-      const numRows = getRandomInt(2, 12);
-      const numColumns = getRandomInt(2, 12);
+      const numRows = getRandomInt(2, 5);
+      const numColumns = getRandomInt(2, 5);
 
       const grid = [];
       grid.length = numRows;
@@ -802,6 +943,27 @@ export const codingContractTypesMetadata = [
       }
 
       return obstacleGrid[obstacleGrid.length - 1][obstacleGrid[0].length - 1] === parseInt(ans);
+    },
+    answer: (data) => {
+      const obstacleGrid = [];
+      obstacleGrid.length = data.length;
+      for (let i = 0; i < obstacleGrid.length; ++i) {
+        obstacleGrid[i] = data[i].slice();
+      }
+
+      for (let i = 0; i < obstacleGrid.length; i++) {
+        for (let j = 0; j < obstacleGrid[0].length; j++) {
+          if (obstacleGrid[i][j] == 1) {
+            obstacleGrid[i][j] = 0;
+          } else if (i == 0 && j == 0) {
+            obstacleGrid[0][0] = 1;
+          } else {
+            obstacleGrid[i][j] = (i > 0 ? obstacleGrid[i - 1][j] : 0) + (j > 0 ? obstacleGrid[i][j - 1] : 0);
+          }
+        }
+      }
+
+      return obstacleGrid[obstacleGrid.length - 1][obstacleGrid[0].length - 1];
     },
   },
   {

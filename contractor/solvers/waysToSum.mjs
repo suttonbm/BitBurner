@@ -1,4 +1,4 @@
-export function waysToSum(x) {
+export function waysToSum2(x) {
     if (x <= 1) {
         return 0;
     } else if (x == 2) {
@@ -15,4 +15,16 @@ export function waysToSum(x) {
         }
         return result;
     }
+}
+
+export function waysToSum(x) { 
+    const ways = [1];
+    ways.length = x + 1;
+    ways.fill(0, 1);
+    for (let i = 1; i < x; ++i) {
+        for (let j = i; j <= x; ++j) {
+            ways[j] += ways[j - i];
+        }
+    }
+    return ways[x];
 }

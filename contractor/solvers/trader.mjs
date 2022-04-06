@@ -1,12 +1,26 @@
 export function doTrades(A, k) {
+    A = removeDuplicates(A);
     let minVals = getMinima(A);
     let maxVals = getMaxima(A);
     let pairA = minVals.map((e,i) => { return [e, maxVals[i]]; });
     return maxTrades(pairA, Math.min(k, pairA.length));
 }
 
+function removeDuplicates(A) {
+    let result = [];
+    result.push(A[0]);
+    for (let i=1; i<A.length; i++) {
+        if (A[i] != result.at(-1)) {
+            result.push(A[i]);
+        }
+    }
+    return result;
+}
+
 function maxTrades(A, k, n=0, m=A.length) {
-    if (k === 1) {
+    if (k <= 0) {
+        return 0;
+    } else if (k === 1) {
         return bestOne(A, n, m);
     } else {
         let best = -1;
@@ -44,7 +58,7 @@ function getMinima(A) {
         result.push(A[0]);
     }
     for (let i=1; i<A.length-1; i++) {
-        if (A[i] < A[i-1] && A[i] < A[i+1]) {
+        if (A[i] < A[i-1] && A[i] <= A[i+1]) {
             result.push(A[i]);
         }
     }
@@ -54,7 +68,7 @@ function getMinima(A) {
 function getMaxima(A) {
     let result = [];
     for (let i=1; i<A.length-1; i++) {
-        if (A[i] > A[i-1] && A[i] > A[i+1]) {
+        if (A[i] > A[i-1] && A[i] >= A[i+1]) {
             result.push(A[i]);
         }
     }

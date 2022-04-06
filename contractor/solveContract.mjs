@@ -6,6 +6,8 @@ import { spiralize } from "./solvers/spiralize.mjs";
 import { getMaxSubarray } from "./solvers/subarrayMaxSum.mjs";
 import { doTrades } from "./solvers/trader.mjs";
 import { waysToSum } from "./solvers/waysToSum.mjs";
+import { findTrianglePath } from "./solvers/trianglePath.mjs";
+import { findPaths } from "./solvers/gridPaths.mjs";
 
 
 export function solveContract(contractType, contractData) {
@@ -23,7 +25,7 @@ export function solveContract(contractType, contractData) {
         case "Merge Overlapping Intervals":
             return mergeIntervals(contractData);
         case "Generate IP Addresses":
-            return undefined; // Not implemented
+            return makeIPs(contractData);
         case "Algorithmic Stock Trader I":
             return doTrades(contractData, 1);
         case "Algorithmic Stock Trader II":
@@ -33,11 +35,11 @@ export function solveContract(contractType, contractData) {
         case "Algorithmic Stock Trader IV":
             return doTrades(contractData[1], contractData[0]);
         case "Minimum Path Sum in a Triangle":
-            return undefined; // Not implemented
+            return findTrianglePath(contractData);
         case "Unique Paths in a Grid I":
-            return undefined; // Not implemented
+            return findPaths(contractData[0], contractData[1]);
         case "Unique Paths in a Grid II":
-            return undefined; // Not implemented
+            return findPaths(contractData.length, contractData[0].length, contractData);
         case "Sanitize Parentheses in Expression":
             return undefined; // Not implemented
         case "Find All Valid Math Expressions":
