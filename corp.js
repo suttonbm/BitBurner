@@ -21,6 +21,10 @@ export async function main(ns) {
 		await initCities(ns, corp.divisions[0]);
 	}
 
+	for (const division of ns.corporation.getCorporation().divisions) {
+		await initCities(ns, division);
+	}
+
 	while (true) {
 		corp = ns.corporation.getCorporation();
 		for (const division of corp.divisions.reverse()) {

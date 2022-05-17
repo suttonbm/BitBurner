@@ -10,7 +10,7 @@ const skillRank = {
     "Short-Circuit": {"prio": 1, "max": 25},
     "Digital Observer": {"prio": 1, "max": Infinity},
     "Tracer": {"prio": 0, "max": 1},
-    "Overclock": {"prio": 1, "max": 99},
+    "Overclock": {"prio": 1, "max": 90},
     "Reaper": {"prio": 1, "max": Infinity},
     "Evasive System": {"prio": 1, "max": Infinity},
     "Datamancer": {"prio": 0, "max": 1},
@@ -23,12 +23,16 @@ const skillRank = {
 // TODO: Handle if we have access to bladeburner.
 
 export async function main(ns) {
+    ns.bladeburner.getContractNames(); // Will error out if not BB
+
     while (true) {
         await ns.sleep(10);
-        await goToBestCity(ns, ns.bladeburner);
         await checkBlackOps(ns, ns.bladeburner);
         await doBestAction(ns, ns.bladeburner);
-        await doUpgrades(ns, ns.bladeburner);
+        let c = await doUpgrades(ns, ns.bladeburner);
+        while (ns.bladeburner.getSkillPoints() > c) {
+            c = await doUpgrades(ns, ns.bladeburner);
+        }
     }
 }
 
@@ -36,28 +40,16 @@ async function checkBlackOps(ns, bb) {
     let ops = bb.getBlackOpNames();
     for (let i=0; i<ops.length; i++) {
         let curRank = bb.getRank();
-        let opRank = bb.getBlackOpRank();
-        let opChance = bb.getActionEstimatedSuccessChance("blackop", ops[i]);
+        let opRank = bb.getBlackOpRank(ops[i]);
+        let opChance = bb.getActionEstimatedSuccessChance("blackop", ops[i])[0];
+        if (bb.getActionCountRemaining("blackop", ops[i]) != 1) {
+            ns.tprint(`Black op ${ops[i]} is already completed (${bb.getActionCountRemaining("blackop", ops[i])}).`);
+            continue;
+        }
         if (curRank > opRank && opChance > 0.90) {
-            ns.print(`Attempting Black Op ${ops[i]}...`);
-            doAction(ns, "blackop", ops[i]);
+            ns.tprint(`Attempting Black Op ${ops[i]}...`);
+            await doAction(ns, "blackop", ops[i]);
         }
-    }
-}
-
-async function goToBestCity(ns, bb) {
-    let bestCity = bb.getCity();
-    let bestPop = bb.getCityEstimatedPopulation(bestCity);
-    for (let i=0; i<cities.length; i++) {
-        let thisPop = bb.getCityEstimatedPopulation(cities[i]);
-        if (thisPop > bestPop) {
-            bestPop = thisPop;
-            bestCity = cities[i];
-        }
-    }
-    if (bestCity != bb.getCity()) {
-        ns.print(`Highest population in ${bestCity}.  Traveling there.`);
-        bb.switchCity(bestCity);
     }
 }
 
@@ -74,55 +66,79 @@ async function doAction(ns, type, name) {
 }
 
 async function doBestAction(ns, bb) {
+    // Todo: consider best city for an action, as success depends on location.
+
     // First check city chaos and mitigate if necessary
     if (bb.getCityChaos(bb.getCity()) > 50) {
-        ns.print(`Chaos out of range in ${bb.getCity()}. Starting diplomacy.`);
-        await doAction(ns, "general", "Diplomacy");
+        ns.tprint(`Chaos out of range in ${bb.getCity()}. Starting diplomacy.`);
+        while (bb.getCityChaos(bb.getCity()) > 10) {
+            await doAction(ns, "general", "Diplomacy");
+        }
         return;
     }
     // Next check stamina and recover if low
     if (staminaPct(ns) < 0.5) {
-        ns.print("Stamina low, regenerating.");
-        await doAction(ns, "general", "Hyperbolic Regeneration Chamber");
+        ns.tprint("Stamina low, regenerating.");
+        while (staminaPct(ns) < 0.95) {
+            await doAction(ns, "general", "Hyperbolic Regeneration Chamber");
+        }
         return;
     }
     // Otherwise do highest rep gain action
     let actionList = [];
-    bb.getContractNames().forEach(elt => actionList.append(["contract", elt]));
-    bb.getOperationNames().forEach(elt => actionList.append(["operation", elt]));
+    bb.getContractNames().forEach(elt => actionList.push(["contract", elt]));
+    bb.getOperationNames().forEach(elt => actionList.push(["operation", elt]));
     let bestAction = [];
     let bestActionRepGain = -1;
     let bestActionLevel = -1;
-    for (let i=0; i<actionList.length; i++) {
-        if (actionList[i][1] == "Raid") {
-            continue;
-        }
-        if (bb.getActionCountRemaining(...actionList[i]) < 10) {
-            continue;
-        }
-        //ns.bladeburner.setActionAutolevel();
-        for (let lvl=1; lvl<=bb.getActionMaxLevel(...actionList[i]); lvl++) {
-            let repGain = bb.getActionRepGain(...actionList[i], lvl) * bb.getActionEstimatedSuccessChance(...actionList[i]) / bb.getActionTime(...actionList[i]);
-            if (repGain > bestActionRepGain) {
-                bestActionRepGain = repGain;
-                bestAction = actionList[i];
-                bestActionLevel = lvl;
+    let bestCity = bb.getCity();
+    for (let c=0; c<cities.length; c++) {
+        bb.switchCity(cities[c]);
+        for (let i=0; i<actionList.length; i++) {
+            if (actionList[i][1] == "Raid") {
+                continue;
+            }
+            if (bb.getActionCountRemaining(...actionList[i]) < 10) {
+                ns.tprint(`Action ${actionList[i][1]} depleted.`);
+                continue;
+            }
+            //ns.bladeburner.setActionAutolevel();
+            for (let lvl=1; lvl<=bb.getActionMaxLevel(...actionList[i]); lvl++) {
+                let baseRep = bb.getActionRepGain(...actionList[i], lvl);
+                //ns.tprint(`Base rep gain for ${actionList[i][1]} at level ${lvl} is ${baseRep}`);
+                let successChc = bb.getActionEstimatedSuccessChance(...actionList[i])[0];
+                //ns.tprint(`Success rate for ${actionList[i][1]} at level ${lvl} is ${successChc}`);
+                let actionTime = bb.getActionTime(...actionList[i]);
+                //ns.tprint(`Action time for ${actionList[i][1]} at level ${lvl} is ${actionTime}`);
+                let repGain = baseRep * successChc / actionTime;
+                //ns.tprint(`Rep gain for ${actionList[i][1]} at level ${lvl} is ${repGain}`);
+                if (repGain > bestActionRepGain && successChc > 0.5) {
+                    bestActionRepGain = repGain;
+                    bestAction = actionList[i];
+                    bestActionLevel = lvl;
+                    bestCity = cities[c];
+                }
             }
         }
     }
     if (bestAction.length>0 && bestActionRepGain>0) {
-        ns.print(`Starting ${bestAction[0]} ${bestAction[1]} at level ${bestLvl}`);
+        ns.tprint(`Starting ${bestAction[0]} ${bestAction[1]} at level ${bestActionLevel}`);
+        if (bb.getActionCurrentLevel(...bestAction) != bestActionLevel) {
+            bb.setActionAutolevel(...bestAction, false);
+            bb.setActionLevel(...bestAction, bestActionLevel);
+        }
+        bb.switchCity(bestCity);
         await doAction(ns, ...bestAction);
         return;
     }
     // IFF no other actions available, Raid
-    if (bb.getActionCountRemaining("Raid") > 0) {
-        ns.print("Starting Raid.");
+    if (bb.getActionCountRemaining("operation", "Raid") > 0) {
+        ns.tprint("Starting Raid.");
         await doAction(ns, "operation", "Raid");
         return;
     }
     // IFF no actions available, incite violece
-    ns.print("No other actions available, inciting violence.");
+    ns.tprint("No other actions available, inciting violence.");
     await doAction(ns, "general", "Incite Violence");
 }
 
@@ -149,8 +165,9 @@ async function doUpgrades(ns, bb) {
     if (minCost < Infinity && minCostSkill != "") {
         if (bb.upgradeSkill(minCostSkill)) {
             ns.print(`Upgraded skill ${minCostSkill}.`);
+            return minCost;
         }
     }
 
-    return;
+    return Infinity;
 }
