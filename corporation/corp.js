@@ -1,36 +1,16 @@
 /** @param {NS} ns **/
-
-const corpName = "Umbrella";
-
 export async function main(ns) {
-	ns.disableLog("disableLog");
-    ns.disableLog("sleep");
+	ns.disableLog("disableLog"); ns.disableLog("sleep");
 
 	if (!ns.getPlayer().hasCorporation) {
-		ns.print(`Opening corporation ${corpName}`);
-		ns.corporation.createCorporation(corpName);
-		var corp = ns.corporation.getCorporation();
-		await doPublic(ns, corp);
-		await buyBack(ns, corp);
+		ns.corporation.createCorporation("MyCorp");
 	}
-	corp = ns.corporation.getCorporation();
-
-	// Go public with minimum shares
-	// Buy back all shares from going public
-	// Start Ag division and initial upgrade
-	// Wait for share price to rise and issue new shares
-	// Open tobacco and healthcare divisions
-	// PROFIT (dividends)
-
+	var corp = ns.corporation.getCorporation();
 	if (corp.divisions.length < 1) {
-		// Start first division in agriculture
-		ns.corporation.expandIndustry("Agriculture", "Ag");
+		// initial Company setup
+		ns.corporation.expandIndustry("Tobacco", "Tobacco");
 		corp = ns.corporation.getCorporation();
-        
-		// Complete initial upgrades for the corporation
-        await initialCorpUpgrade(ns);
-
-        // Initialize cities for this division
+		await initialCorpUpgrade(ns);
 		await initCities(ns, corp.divisions[0]);
 	}
 

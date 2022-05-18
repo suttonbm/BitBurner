@@ -1,111 +1,142 @@
 /** @param {NS} ns **/
 
-
 export async function main(ns) {
-	ns.disableLog("disableLog");
-    ns.disableLog("sleep");
+	ns.disableLog("ALL");
 
 	if (!ns.getPlayer().hasCorporation) {
+		ns.print("Creating corporation and purchasing initial upgrades.");
 		ns.corporation.createCorporation("UmbrellaCorp");
+		// Perform corporation exploit
+		doExploit(ns);
+		// Complete initial upgrades for the corporation
+		initialCorpUpgrade(ns);
 	}
 
-	var corp = ns.corporation.getCorporation();
-	if (corp.divisions.length < 1) {
-		// Start first division in agriculture, not tobacco
-		ns.corporation.expandIndustry("Agriculture", "Ag");
-		corp = ns.corporation.getCorporation();
-        
-		// Complete initial upgrades for the corporation
-        await initialCorpUpgrade(ns);
-        // Initialize cities for this division
-		await initCities(ns, corp.divisions[0]);
+	if (ns.corporation.getCorporation().divisions.length == 0) {
+		spawnDivision(ns);
 	}
 
 	while (true) {
-		corp = ns.corporation.getCorporation();
-		for (const division of corp.divisions.reverse()) {
-			upgradeWarehouses(ns, division);
-			upgradeCorp(ns);
-			await hireEmployees(ns, division);
-			newProduct(ns, division);
-			doResearch(ns, division);
+		await ns.sleep(10*1000);
+		let corp = ns.corporation.getCorporation();
+		
+		// Check if sufficient funds to expand industries.
+		let nextInd = industryTypes[corp.divisions.length].name;
+		if (corp.funds > 10*(ns.corporation.getExpandIndustryCost(nextInd) + expandAdder)) {
+			spawnDivision(ns);
 		}
-		if (corp.divisions.length < 2 && corp.numShares == corp.totalShares) {
-			if (corp.divisions[0].products.length > 2) {
-				await trickInvest(ns, corp.divisions[0]);
-			}
-		}
-		await ns.sleep(5000);
+
+		// Iterate over industries and perform logistics
 	}
 }
 
-async function initCities(ns, division, productCity=undefined) {
-	for (const city of cities) {
-		ns.print("Expand " + division.name + " to City " + city);
-		if (!division.cities.includes(city)) {
-			ns.corporation.expandCity(division.name, city);
-			ns.corporation.purchaseWarehouse(division.name, city);
-		}
-
-		if (city != productCity) {
-			// setup employees
-			for (let i = 0; i < 3; i++) {
-				ns.corporation.hireEmployee(division.name, city);
-			}
-			ns.corporation.setAutoJobAssignment(division.name, city, "Operations", 1);
-            ns.corporation.setAutoJobAssignment(division.name, city, "Engineer", 1);
-            ns.corporation.setAutoJobAssignment(division.name, city, "Business", 1);
-            for (let i=0; i<2; i++) {
-                ns.corporation.upgradeWarehouse(division.name, city);
-            }
-		}
-	}
-
-	ns.corporation.makeProduct(division.name, productCity, "Product-0", "1e9", "1e9");
+function doExploit(ns) {
+	// Purchase API upgrades
+	let x = Object.keys(document.getElementsByClassName("jss3")[0]);
+	document.getElementsByClassName("jss3")[0][x].children.props.player.corporation.unlockUpgrades[7] = 1;
+	document.getElementsByClassName("jss3")[0][x].children.props.player.corporation.unlockUpgrades[8] = 1;
+	
+	// Exploit public valuation
+	ns.corporation.goPublic(1);
+	ns.corporation.buyBackShares(1);
+	document.getElementsByClassName("jss3")[0][x].children.props.player.corporation.immediatelyUpdateSharePrice();
 }
 
-async function initialCorpUpgrade(ns) {
+function spawnDivision(ns) {
+	let corp = ns.corporation.getCorporation();
+	let nextInd = industryTypes[corp.divisions.length].name;
+	ns.print(`Corp currently has ${corp.divisions.length} divisions.`);
+	if (corp.funds > ns.corporation.getExpandIndustryCost(nextInd) + expandAdder) {
+		ns.print(`Opening a new division in ${nextInd}`);
+		ns.corporation.expandIndustry(nextInd, nextInd);
+		// Expand to all cities and open warehouses.
+		let div = ns.corporation.getDivision(nextInd);
+		for (const city of cities) {
+			if (!div.cities.includes(city)) {
+				ns.print(`Opening ${nextInd} office in ${city}`);
+				ns.corporation.expandCity(nextInd, city);
+				if (ns.corporation.hasUnlockUpgrade("Warehouse API")) {
+					ns.print(`Creating warehouse in ${city}`);
+					ns.corporation.purchaseWarehouse(nextInd, city);
+				} else {
+					ns.print("Opened division but did not buy warehouses!  Need API.");
+				}
+			}
+		}
+	} else {
+		ns.print("Insufficient funds to open the next division.");
+	}
+}
+
+function initialCorpUpgrade(ns) {
 	ns.print("Initial corp upgrades");
-    // upgrade corp features
-	ns.corporation.unlockUpgrade("Smart Supply");
-	ns.corporation.levelUpgrade("Smart Storage");
-	ns.corporation.levelUpgrade("Smart Storage");
-	ns.corporation.levelUpgrade("Smart Storage");
-	ns.corporation.levelUpgrade("Smart Storage");
-	ns.corporation.levelUpgrade("DreamSense");
-	// upgrade employee stats
-	ns.corporation.levelUpgrade("Nuoptimal Nootropic Injector Implants");
-	ns.corporation.levelUpgrade("Speech Processor Implants");
-	ns.corporation.levelUpgrade("Neural Accelerators");
-	ns.corporation.levelUpgrade("FocusWires");
+    for (const upgrade of oneShotCorpUpgrades) {
+		if (upgrade.init) {
+			ns.corporation.unlockUpgrade(upgrade.name);
+		}
+	}
 }
+
+const expandAdder = 5 * (5e9 + 4e9); // Account for expansion into all cities.
 
 const cities = ["Sector-12", "Aevum", "Volhaven", "Chongqing", "New Tokyo", "Ishima"];
 
-const upgradeList = [
+const industryTypes = [
+	{name: "Agriculture", makeProd: false},
+	{name: "Tobacco", makeProd: true},
+	{name: "Healthcare", makeProd: true},
+	{name: "Energy", makeProd: false},
+	{name: "Water Utilities", makeProd: false},
+	{name: "Fishing", makeProd: false},
+	{name: "Mining", makeProd: false},
+	{name: "Food", makeProd: true},
+	{name: "Chemical", makeProd: false},
+	{name: "Pharmaceutical", makeProd: true},
+	{name: "Computer Hardware", makeProd: true},
+	{name: "Robotics", makeProd: true},
+	{name: "Software", makeProd: true},
+	{name: "RealEstate", makeProd: true},
+];
+
+const oneShotCorpUpgrades = [
+	{ name: "Export", init: false },
+	{ name: "Smart Supply", init: true },
+	{ name: "Market Research - Demand", init: false },
+	{ name: "Market Data - Competition", init: false },
+	{ name: "VeChain", init: false },
+	{ name: "Shady Accounting", init: false },
+	{ name: "Government Partnership", init: false },
+	{ name: "Warehouse API", init: false },
+	{ name: "Office API", init: false },
+];
+
+const corpUpgrades = [
 	// lower priority value -> upgrade faster
-	{ prio: 2, name: "Project Insight" },
-	{ prio: 2, name: "DreamSense" },
-	{ prio: 4, name: "ABC SalesBots" },
-	{ prio: 4, name: "Smart Factories" },
-	{ prio: 4, name: "Smart Storage" },
-	{ prio: 8, name: "Neural Accelerators" },
-	{ prio: 8, name: "Nuoptimal Nootropic Injector Implants" },
-	{ prio: 8, name: "FocusWires" },
-	{ prio: 8, name: "Speech Processor Implants" },
-	{ prio: 8, name: "Wilson Analytics" },
+	{ name: "Project Insight" },
+	{ name: "DreamSense" },
+	{ name: "ABC SalesBots" },
+	{ name: "Smart Factories" },
+	{ name: "Smart Storage" },
+	{ name: "Neural Accelerators" },
+	{ name: "Nuoptimal Nootropic Injector Implants" },
+	{ name: "FocusWires" },
+	{ name: "Speech Processor Implants" },
+	{ name: "Wilson Analytics" },
 ];
 
 const researchList = [
 	// lower priority value -> upgrade faster
-	{ prio: 10, name: "Overclock" },
-	{ prio: 10, name: "uPgrade: Fulcrum" },
-	{ prio: 3, name: "uPgrade: Capacity.I" },
-	{ prio: 4, name: "uPgrade: Capacity.II" },
-	{ prio: 10, name: "Self-Correcting Assemblers" },
-	{ prio: 21, name: "Drones" },
-	{ prio: 4, name: "Drones - Assembly" },
-	{ prio: 10, name: "Drones - Transport" },
-	{ prio: 26, name: "Automatic Drug Administration" },
-	{ prio: 10, name: "CPH4 Injections" },
+	{ name: "Hi-Tech R&D Laboratory"},
+	{ name: "Overclock" },
+	{ name: "uPgrade: Fulcrum" },
+	{ name: "uPgrade: Capacity.I" },
+	{ name: "uPgrade: Capacity.II" },
+	{ name: "uPgrade: Dashboard" },
+	{ name: "Self-Correcting Assemblers" },
+	{ name: "Drones" },
+	{ name: "Drones - Assembly" },
+	{ name: "Drones - Transport" },
+	{ name: "Automatic Drug Administration" },
+	{ name: "CPH4 Injections" },
+	{ name: "sudo.Assist" }
 ];
